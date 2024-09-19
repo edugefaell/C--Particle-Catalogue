@@ -1,0 +1,1663 @@
+// Eduardo Gefaell
+// May 2024
+// PHYS 30762 Programming in C++
+// Project particle catalogue: full catalogue of fundamental particles with decays. 
+// Practice inheritance and polymorphism in C++ classes
+
+#include<iostream>
+#include<string>
+#include<vector>
+#include<cmath>
+#include<numeric>
+#include<algorithm>
+#include<memory>
+#include<stdexcept>
+#include<random>
+#include<map>
+#include<unordered_map>
+#include<iterator>
+#include <functional> 
+
+using std::string;
+
+
+class four_momentum
+{
+private:
+  std::vector<double> components;  
+
+public:
+  four_momentum() : components(4, 0.0) {}  // Initialize with four zeros
+
+  four_momentum(double energy, double p_x, double p_y, double p_z)
+  : components{energy, p_x, p_y, p_z} 
+  {
+    adjust_to_physical();
+  }
+
+  four_momentum(const four_momentum& other) = default; // Default copy constructor
+  four_momentum(four_momentum&& other) noexcept = default; // Default move constructor
+  four_momentum& operator=(const four_momentum& other) = default; // Default copy assignment operator
+  ~four_momentum() = default;
+
+  double get_energy() const { return components[0]; }
+  double get_px() const { return components[1]; }
+  double get_py() const { return components[2]; }
+  double get_pz() const { return components[3]; }
+
+  void set_energy(double energy)
+  {
+    components[0] = energy;
+    adjust_to_physical();
+    
+  }
+
+  void set_px(double p_x) { components[1] = p_x; }
+  void set_py(double p_y) { components[2] = p_y; }
+  void set_pz(double p_z) { components[3] = p_z; }
+
+  bool is_valid() const 
+  {
+    return components[0] >= sqrt(components[1] * components[1] + components[2] * components[2] + components[3] * components[3]);
+  }
+
+  void adjust_to_physical() //If Energy is less than the magnitude, this is changed to the magnitude value. 
+  {
+    double momentum_magnitude = sqrt(components[1] * components[1] + components[2] * components[2] + components[3] * components[3]);
+    if(components[0] < momentum_magnitude)
+    {
+      std::cerr << "Adjusting energy  from "<<components[0]<<" to "<<momentum_magnitude<<" to satisfy physical constraints.\n";
+      components[0] = momentum_magnitude;
+    }
+  }
+
+  four_momentum operator+(const four_momentum& rhs) const
+  {
+    return four_momentum(
+        components[0] + rhs.components[0],
+        components[1] + rhs.components[1],
+        components[2] + rhs.components[2],
+        components[3] + rhs.components[3]);
+  }
+
+  four_momentum operator-(const four_momentum& rhs) const
+  {
+    return four_momentum(
+       components[0] - rhs.components[0],
+       components[1] - rhs.components[1],
+       components[2] - rhs.components[2],
+       components[3] - rhs.components[3]);
+  }
+
+  double dot(const four_momentum& rhs) const
+  {
+    return components[0] * rhs.components[0] -
+            (components[1] * rhs.components[1] +
+            components[2] * rhs.components[2] +
+            components[3] * rhs.components[3]);
+  }
+
+  double invariant_mass() const 
+  {
+    double m2 = components[0] * components[0] -
+                (components[1] * components[1] +
+                  components[2] * components[2] +
+                  components[3] * components[3]);
+    return m2 > 0 ? sqrt(m2) : 0;  // Return 0 for non-physical negative mass squared
+  }
+};
+
+class particle 
+{
+protected: 
+  double charge;
+  double spin;
+  string particle_name;
+  double rest_mass;
+  std::unique_ptr<four_momentum> momentum;
+public:
+
+  particle() : particle_name(""), rest_mass(0), charge(0), spin(0), momentum(){}
+  particle(const std::string& name, double mass, double ch, double sp, const four_momentum& mom)
+  : particle_name{name}, rest_mass{mass}, charge{ch}, spin(sp), momentum(std::make_unique<four_momentum>(mom)) {}
+
+  particle(const particle& other)
+  : particle_name(other.particle_name), rest_mass(other.rest_mass), charge(other.charge), spin(other.spin), momentum(std::make_unique<four_momentum>(*other.momentum)) {}
+
+  particle(particle&& other) noexcept
+  : particle_name(std::move(other.particle_name)), rest_mass(other.rest_mass), charge(other.charge), spin(other.spin), momentum(std::move(other.momentum)) {}
+
+  virtual ~particle() {}
+
+  particle& operator=(const particle& other) 
+  {
+    std::cout << "Calling copy assignment operator" << std::endl;
+    if (this != &other)  //Check to avoid self-assignment. 
+    {
+      particle_name = other.particle_name;
+      rest_mass = other.rest_mass;
+      charge = other.charge;
+      spin = other.spin;
+      momentum = std::make_unique<four_momentum>(*other.momentum);
+    }
+    return *this;
+  }
+
+  particle& operator=(particle&& other) noexcept 
+  {
+    std::cout << "Calling move assignment operator" << std::endl;
+    if (this != &other) 
+    {
+      particle_name = std::move(other.particle_name);
+      rest_mass = other.rest_mass;
+      charge = other.charge;
+      spin = other.spin;
+      momentum = std::move(other.momentum);
+    }
+    return *this;
+  }
+
+  void set_energy(double energy)
+  {
+    momentum->set_energy(energy);
+  }
+
+  void set_px(double p_x)
+  {
+    momentum->set_px(p_x);
+  }
+
+  void set_py(double p_y)
+  {
+    momentum->set_py(p_y);
+  }
+
+  void set_pz(double p_z)
+  {
+    momentum->set_pz(p_z);
+  }
+
+  double get_energy() const { return momentum->get_energy();}
+  double get_px() const { return momentum->get_px();}
+  double get_py() const { return momentum->get_py();}
+  double get_pz() const { return momentum->get_pz();}
+
+  void set_particle_name(const string& name)
+  {
+    particle_name = name;
+  }
+
+  string get_particle_name() const 
+  {
+    return particle_name;
+  } 
+
+  void set_rest_mass(double mass )
+  {
+    if (mass < 0 || mass == 0)
+    {
+      std::cout<< "Rest mass must be possitive"<<std::endl;
+    }
+    rest_mass = mass;
+  }
+
+  double get_rest_mass() const 
+  {
+    return rest_mass;
+  }
+
+  void set_charge(int ch) 
+  {
+    charge = ch;
+  }
+
+  double get_charge() const
+  {
+    return charge;
+  }
+
+  void set_spin(double sp)
+  {
+    spin = sp;
+  }
+
+  double get_spin() const
+  {
+    return spin;
+  }
+
+  //Function for setting and validating a momentum instance in a particle.
+  void validate_and_set_momentum(const four_momentum& mom)
+  {
+    auto tmp_mom = std::make_unique<four_momentum>(mom);
+    if(std::abs(tmp_mom->invariant_mass()- rest_mass) > 1e-6)
+    {
+      std::cerr << "Warning: provided four momentum does not macth rest mass of the particle. Adjusting values for consistency.\n";
+      double energy =std::sqrt(rest_mass * rest_mass +
+                               tmp_mom->get_px() * tmp_mom->get_px() +
+                               tmp_mom->get_py() * tmp_mom->get_py() +
+                               tmp_mom->get_pz() * tmp_mom->get_pz());
+      
+      momentum = std::move(tmp_mom); //set the validated 4-momentum to the particle
+    }
+  }
+
+  virtual void print_data() const
+  {
+    std::cout << "Particle name: " << particle_name << std::endl;
+    std::cout << "Rest mass: " << rest_mass << " MeV/c^2" << std::endl;
+    std::cout << "Charge: " << charge << std::endl;
+    std::cout << "Spin: " << spin << std::endl;
+    std::cout << "Four-momentum: (E, px, py, pz) = (" 
+              << momentum->get_energy() << ", " 
+              << momentum->get_px() << ", " 
+              << momentum->get_py() << ", " 
+              << momentum->get_pz() << ")" << std::endl;
+    
+    std::cout << "Calculated invariant mass: " << momentum->invariant_mass()<< "MeV/c^2" << std::endl;
+
+  }
+
+  //Accessor function to the four-momenta (only read)
+  const four_momentum* get_four_momentum_ptr() const 
+  {
+    return momentum.get();
+  }
+};
+
+class lepton : public particle
+{
+protected:
+  int lepton_number;
+public:
+ 
+  lepton(const string&name, double mass, double charge, const four_momentum&mom, int lept_number) : particle(name, mass, charge, 1.0/2.0, mom), lepton_number(lept_number){}
+  virtual ~lepton() {}  
+
+  int get_lepton_number() const
+  {
+    return lepton_number;
+  }
+
+  virtual lepton create_antiparticle() const
+  {
+    std::string antiparticle_name;
+    four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+    return lepton( antiparticle_name, rest_mass, -charge, antiparticle_momentum, lepton_number);
+  }
+
+  void print_data() const override
+  {
+    particle::print_data();
+
+    std::cout<<"Lepton number: "<< lepton_number<<std::endl;
+  } 
+
+};
+
+class electron : public lepton
+{
+  private: 
+    std::vector<double> calorimeter_energies;
+  public: 
+    electron(const four_momentum& mom) : lepton("electron", 0.511, -1,  mom, 1), calorimeter_energies(4, mom.get_energy() /4) // Assume equal distribution for simplicity
+    {}
+
+    void set_calorimeter_energies(const std::vector<double>& energies)
+    {
+      double total_energy = std::accumulate(energies.begin(), energies.end(), 0.0);
+      double electron_energy = momentum -> get_energy();
+      // Check if the total_energy from calorimeter is within an acceptable range
+      // Define some_tolerance value e.g., 0.01 for 1%
+      const double some_tolerance = 0.01;
+      if (std::abs(total_energy - electron_energy) > electron_energy * some_tolerance)
+      {
+        double scale_factor = electron_energy / total_energy;
+        std::transform(energies.begin(), energies.end(), calorimeter_energies.begin(), [scale_factor](double e) {return e *scale_factor;});
+        //If the energuies set are greater than our tolerance, it uses the scaling factor to adjust the calorimeter energies.     
+      }
+      else 
+      {
+        calorimeter_energies = energies;
+      }
+    }
+    const std::vector<double>& get_calorimeter_energies() const
+    {
+      return calorimeter_energies;
+    }
+
+    lepton create_antiparticle() const override
+    { 
+      string antiparticle_name;
+      four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+      return lepton( "positron", rest_mass, 1, antiparticle_momentum, -1);
+    }
+    
+    ~electron() override{}
+    void print_data() const override
+    {
+      lepton::print_data();
+      std::cout<< "Calorimeter energies: ";
+      for (const auto& energy : calorimeter_energies)
+      {
+        std::cout<< energy<<" ";
+      }
+      std::cout<<std::endl;
+    }
+};
+class muon : public lepton 
+{
+  protected:
+    bool is_isolated;
+
+  public: 
+    muon(const four_momentum& mom, bool isolation) : lepton("muon", 105.7, -1,  mom, 1), is_isolated(isolation){}
+
+    void set_isolation(bool isolation)
+    {
+      is_isolated =isolation;
+    }
+    bool get_isolation()
+    {
+      return is_isolated;
+    }
+
+    lepton create_antiparticle() const override
+    { 
+      std::string antiparticle_name;
+      four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+      return lepton( "antimuon", rest_mass, 1, antiparticle_momentum, -1);
+    }  
+    
+    ~muon() override {}
+    void print_data() const override
+    {
+      lepton::print_data();
+      std::cout<< "Muon is isolated: "<< (is_isolated ==true? "Yes" : "No" )<< std::endl;
+    }
+};
+enum class neutrino_type
+{
+  electron_neutrino, muon_neutrino, tau_neutrino
+};
+class neutrino : public lepton
+{
+  private: 
+    neutrino_type type;
+
+  protected:
+    bool has_interacted;
+  
+
+  public:
+    neutrino(neutrino_type type, const four_momentum& mom, bool interacted)
+    : lepton("", 0.0, 0, mom, 1), has_interacted(interacted)
+    {
+      if (type == neutrino_type::electron_neutrino)
+      {
+        particle_name = "electron neutrino";
+        rest_mass = 2.5e-6;
+      }
+      else if( type == neutrino_type::muon_neutrino)
+      {
+        particle_name = "muon neutrino";
+        rest_mass = 0.19;
+      }
+      else
+      {
+        particle_name = "tau neutrino";
+        rest_mass = 15.5;
+      }
+    }
+
+    void set_interacted( bool interacted)
+    {
+      has_interacted = interacted;
+    }
+
+    bool get_has_interacted() const 
+    {
+      return has_interacted;
+    }
+
+    ~neutrino() override {}
+    lepton create_antiparticle() const override
+    {
+      string antiparticle_name;
+      if (particle_name == "electron neutrino")
+      {
+        antiparticle_name = "electron antineutrino";
+      }
+      else if(particle_name == "muon neutrino")
+      {
+        antiparticle_name = "muon antineutrino";
+      }
+      else
+      {
+        antiparticle_name = "tau antineutrino";
+      }
+      four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+      return lepton( antiparticle_name, rest_mass, 0, antiparticle_momentum, -1);
+    }
+
+    void print_data() const override
+    {
+      lepton::print_data();
+      std::cout<< "Neutrino has interacted: "<< (has_interacted ==true? "Yes" : "No" )<< std::endl;
+    }
+};
+
+class quark : public particle
+{
+protected:
+  string colour_charge;
+  double quark_number;
+public:  
+  quark( const string&nam, double mass, double charge, string colour_ch,  const four_momentum& mom, double q_number) : particle(nam, mass, charge, 1.0/2.0, mom),colour_charge(colour_ch), quark_number(q_number){}
+  virtual ~quark(){} ;
+
+  double get_quark_number() const
+  {
+    return quark_number;
+  } 
+  void set_colour_charge(const string& colour_ch)
+  {
+    if( colour_ch == "red" || colour_ch == "green" || colour_ch == "blue" ||  colour_ch == "antired" || colour_ch == "antigreen" || colour_ch == "antiblue")
+    {
+      colour_charge = colour_ch;
+    }
+    else
+    {
+      throw std::invalid_argument("Invalid colour charge.");
+    }
+  }
+
+  string get_colour_charge() const 
+  {
+    return colour_charge;
+  } 
+
+  bool valid_colour() const 
+  {
+    return colour_charge == "red" || colour_charge =="green" || colour_charge =="blue" || colour_charge == "antired" || colour_charge =="antigreen" || colour_charge =="antiblue"; 
+  }
+  void print_data() const override
+  {
+    particle::print_data();
+    std::cout<<"Colour charge: "<<colour_charge<<std::endl;
+    std::cout<<"Quark number: "<<quark_number<<std::endl;
+  }
+
+  virtual quark create_antiparticle() const
+  {
+    std::string antiparticle_name;
+    four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+    return quark( antiparticle_name, rest_mass, -charge, colour_charge, antiparticle_momentum, quark_number);
+  }
+
+  static string anticolour_charge(const string&colour_charge) // static so it does not rely on instance specific data.
+  {
+    if( colour_charge == "red")
+    {
+      return "antired";
+    }
+    else if( colour_charge == "green")
+    {
+      return "antigreen";
+    }
+    else if( colour_charge == "blue")
+    {
+      return "antiblue";
+    }
+    else if (colour_charge == "antired") 
+    {
+      return "red";
+    } 
+    else if (colour_charge == "antigreen") 
+    {
+      return "green";
+    } 
+    else if (colour_charge == "antiblue") 
+    {
+      return "blue";
+    } 
+    else 
+    {
+      // Handling unexpected input by throwing an exception
+      throw std::invalid_argument("Invalid or unknown colour charge: " + colour_charge);
+    }
+  }
+
+};
+
+namespace up
+{
+  class sub_quark : public quark 
+  {
+  public:
+    sub_quark (const four_momentum& mom, const string& col_ch) : quark( "up", 2.3, 2.0/3.0, col_ch, mom, 1.0/3.0){}
+    
+    ~sub_quark() override {}
+    void print_data() const override
+    {
+      quark::print_data();
+      
+    }
+    quark create_antiparticle() const override
+    { 
+      string antiparticle_name;
+      string anticolour = anticolour_charge(colour_charge);
+      four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+      return quark( "up antiquark", rest_mass, -2.0/3.0, anticolour, antiparticle_momentum, -1.0/3.0);
+    }
+  };
+}
+namespace down
+{
+  class sub_quark : public quark 
+  {
+  public:
+    sub_quark (const four_momentum& mom, const string& col_ch) : quark( "down", 4.8, -1.0/3.0, col_ch, mom, -1.0/3.0){}
+
+    ~sub_quark() override {}
+    void print_data() const override
+    {
+      quark::print_data();
+      
+    }
+    quark create_antiparticle() const override
+    { 
+      string antiparticle_name;
+      string anticolour = anticolour_charge(colour_charge);
+      four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+      return quark( "down antiquark", rest_mass, 1.0/3.0, anticolour, antiparticle_momentum, 1.0/3.0);
+    
+    }
+  };
+}
+namespace charm
+{
+  class sub_quark : public quark 
+  {
+    public:
+    sub_quark (const four_momentum& mom, const string& col_ch) : quark( "charm", 1.275e3, 2.0/3.0, col_ch, mom, 1.0/3.0){}
+    
+    ~sub_quark() override {}
+    void print_data() const override
+    {
+      quark::print_data();
+      
+    }
+    
+    quark create_antiparticle() const override
+    { 
+      string antiparticle_name;
+      string anticolour = anticolour_charge(colour_charge);
+      four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+      return quark( "charm antiquark", rest_mass, -2.0/3.0, anticolour, antiparticle_momentum, -1.0/3.0);
+    }
+  };
+}
+namespace strange
+{
+  class sub_quark : public quark 
+  {
+    public:
+    sub_quark (const four_momentum& mom, const string& col_ch) : quark( "strange", 95, -1.0/3.0, col_ch, mom, -1.0/3.0){}
+        
+    
+    ~sub_quark() override {}
+    void print_data() const override
+    {
+      quark::print_data();
+      
+    }
+
+    quark create_antiparticle() const override
+    { 
+      string antiparticle_name;
+      string anticolour = anticolour_charge(colour_charge);
+      four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+      return quark( "strange antiquark", rest_mass, -1.0/3.0, anticolour, antiparticle_momentum, -1.0/3.0);
+    }
+  };
+}
+namespace top
+{
+
+  class sub_quark : public quark 
+  {
+    public:
+    sub_quark (const four_momentum& mom, const string& col_ch) : quark( "top", 173.07e3, 2.0/3.0, col_ch, mom, 1.0/3.0){}
+    
+    ~sub_quark() override {}
+    void print_data() const override
+    {
+      quark::print_data();
+      
+    }
+
+    quark create_antiparticle() const override
+    { 
+      string antiparticle_name;
+      string anticolour = anticolour_charge(colour_charge);
+      four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+      return quark( "top antiquark", rest_mass, -2.0/3.0, anticolour, antiparticle_momentum, -1.0/3.0);
+    }
+  };
+}
+namespace bottom
+{
+  class sub_quark :public quark 
+  {
+    public:
+    sub_quark (const four_momentum& mom, const string& col_ch) : quark( "bottom", 4.18e3, -1.0/3.0, col_ch, mom, -1.0/3.0){}
+        
+    ~sub_quark() override {}
+    void print_data() const override
+    {
+      quark::print_data();
+      
+    }
+
+    quark create_antiparticle() const override
+    { 
+      string antiparticle_name;
+      string anticolour = anticolour_charge(colour_charge);
+      four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+      return quark( "bottom antiquark", rest_mass, 1.0/3.0, anticolour, antiparticle_momentum, 1.0/3.0);
+    }
+  };
+}
+
+template<typename ParticleType>
+void perform_decay(std::vector<std::shared_ptr<particle>>& decay_products, 
+                   const std::vector<std::pair<double, std::function<void()>>>& decay_paths) 
+{
+  std::random_device rd;
+  std::mt19937 gen(rd()); // Mersenne Twister algorithm for random number generator. 
+  std::uniform_real_distribution<> dis(0, 1); // Generate between 0 and 1.
+  double decay_choice = dis(gen);
+
+  double cumulative_probability = 0.0;
+  for (const auto& [probability, decay_function] : decay_paths) //iterates over decay_paths summing the probabilities
+  {
+    cumulative_probability += probability;
+    if (decay_choice < cumulative_probability)
+    {
+      decay_function();
+      return;
+    } //This mechanism ensures that each decay path is selected in proportion to its proability.
+  } 
+  // Fail-save to alert about potential misconfiguration in the decay probabilities. 
+  throw std::runtime_error("Decay probability configuration error.");
+}
+
+enum class DecayMode { Hadronic, Leptonic};
+
+class tau : public lepton
+{
+  protected:
+    DecayMode decay_mode;
+    //Pointers to decay products for Hadronic decay.
+    std::unique_ptr<neutrino> decay_neutrino_tau;
+    std::unique_ptr<quark> decay_quark;
+    std::unique_ptr<quark> decay_antiquark;
+    //Vector of pointers for Leptonic decay, which uses the decay template.
+    std::vector<std::shared_ptr<particle>> decay_products; 
+    std::vector<std::pair<double, std::function<void()>>> decay_mechanisms;
+  public:
+    tau(const four_momentum& mom, DecayMode mode)
+    : lepton("tau", 1.776e3, -1, mom, 1), decay_mode(mode)
+    {set_default_decays();}
+
+    //Function to simulate decay
+    
+    void set_default_decays()
+    {
+      if(decay_mode == DecayMode::Leptonic)
+      {
+        decay_mechanisms =
+        {
+          {
+            1.0/3.0, [this]()
+            {
+              decay_products.push_back(std::make_shared<lepton>("electron", 0.511, -1, four_momentum(), 1));
+              auto neutrino_ptr = std::make_shared<neutrino>(neutrino_type::electron_neutrino, four_momentum(), false);
+              neutrino_ptr->set_particle_name("electron antineutrino");
+              decay_products.push_back(neutrino_ptr);
+              auto neutrino_tau = std::make_shared<neutrino>(neutrino_type::tau_neutrino, four_momentum(), false);
+              neutrino_tau->set_particle_name("tau antineutrino");
+              decay_products.push_back(neutrino_tau);
+            }
+          },
+          {
+            1.0/3.0, [this]()
+            {
+              decay_products.push_back(std::make_shared<lepton>("muon", 105.7, -1, four_momentum(), 1));
+              auto neutrino_ptr = std::make_shared<neutrino>(neutrino_type::muon_neutrino, four_momentum(), false);
+              neutrino_ptr->set_particle_name("muon antineutrino");
+              decay_products.push_back(neutrino_ptr);
+              auto neutrino_tau = std::make_shared<neutrino>(neutrino_type::tau_neutrino, four_momentum(), false);
+              neutrino_tau->set_particle_name("tau antineutrino");
+              decay_products.push_back(neutrino_tau);
+            }
+          },
+          {
+            1.0/3.0, [this]()
+            {
+              decay_products.push_back(std::make_shared<quark>( "up", 2.3, 2.0/3.0, "green", four_momentum(), 1.0/3.0));
+              decay_products.push_back(std::make_shared<quark>("down", 4.8, -1.0/3.0, "antigreen", four_momentum(), -1.0/3.0));
+              auto neutrino_tau = std::make_shared<neutrino>(neutrino_type::tau_neutrino, four_momentum(), false);
+              neutrino_tau->set_particle_name("tau antineutrino");
+              decay_products.push_back(neutrino_tau);
+            }
+          }
+        };
+      }
+      else
+      {
+        decay_neutrino_tau = std::make_unique<neutrino>(neutrino_type::tau_neutrino, four_momentum(), false);
+        decay_quark = std::make_unique<quark>("up", 2.3, -2.0/3.0, "green", four_momentum(), 1.0/3.0);
+        decay_antiquark = std::make_unique<quark>("down", 4.8, -1.0/3.0, "antigreen", four_momentum(), -1.0/3.0);
+      }
+    }
+    bool check_charge_consistency() const
+    {
+      double total_charge = 0.0;
+      if (decay_mode == DecayMode::Leptonic)
+      {
+        try
+        {
+          double total_charge = std::accumulate(decay_products.begin(), decay_products.end(), 0.0, 
+          [](double sum, const std::shared_ptr<particle>&p)->double
+          {
+            if(p) //Here we ensure the pointer is valid 
+            {
+              return sum + p->get_charge();
+            }
+            else
+            {
+              throw std::invalid_argument("Null particle pointer encountered in decay products.");
+            }
+          });
+          const double epsilon = 1e-6; // Threshold to not compare floating-point numbers for equality.
+          return std::abs(total_charge) < epsilon;
+        } 
+        catch(const std::exception& e)
+        {
+          std::cerr << "Exception in charge consistency check:" << e.what() << '\n';
+          return false;      
+        }
+      }
+        else 
+        {
+          if (decay_neutrino_tau)
+          {
+            total_charge += decay_neutrino_tau->get_charge();
+          }
+          if(decay_quark)
+          {
+            total_charge += decay_quark->get_charge();
+          }
+          if (decay_antiquark)
+          {
+            total_charge += decay_antiquark->get_charge();
+          }
+          return total_charge == charge; 
+        }
+    }
+
+    void set_decay_mode(DecayMode mode)
+    {
+      decay_mode = mode;
+    }
+
+    DecayMode get_decay_mode() const 
+    {
+      return decay_mode;
+    }
+
+
+    ~tau() override {}
+
+    lepton create_antiparticle() const override
+    {
+      string antiparticle_name = "antitau";
+      four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+      return lepton( antiparticle_name, rest_mass, 1, antiparticle_momentum, -1);
+
+    }
+
+    //Accessor functions to get decay products (Hadronic)
+    neutrino* get_neutrino_tau() const {return decay_neutrino_tau.get();}
+    quark* get_decay_quark() const {return decay_quark.get();}
+    quark* get_decay_antiquark() const {return decay_antiquark.get();}
+    
+     void set_decay_mechanisms(const std::vector<std::pair<double, std::function<void()>>>& mechanisms)
+    {
+      decay_mechanisms = mechanisms;
+    }
+
+    const std::vector<std::pair<double, std::function<void()>>>& get_decay_mechanisms() const
+    {
+      return decay_mechanisms;
+    }
+    //Function to perform decay
+    void decay() 
+    {
+      perform_decay<particle>(decay_products, decay_mechanisms);
+    }
+
+    void print_data() const override
+    {
+      lepton::print_data();
+    }
+    void print_decays()
+    {
+      std::cout<< "Decay mode: "<< (decay_mode == DecayMode::Leptonic? "Leptonic":"Hadronic")<< std::endl;
+      if(decay_mode == DecayMode::Leptonic)
+      {
+        std::cout << "Decay products:" << std::endl;
+        for (const auto& product : decay_products) 
+        {
+          if (product) 
+          {
+            product->print_data();  // Call print_data on each decay product
+          } else 
+          {
+            std::cout << "  Null particle detected in decay products." << std::endl;
+          }
+        }
+      }
+      else
+      {
+        std::cout<< "Decay products: \n";
+        decay_neutrino_tau->print_data();
+        decay_quark->print_data();
+        decay_antiquark->print_data();
+      }
+
+      if (decay_neutrino_tau)
+      {
+        std::cout<< "Decays into tau neutrino: \n";
+        decay_neutrino_tau->print_data();
+      }
+    }
+};
+
+class gauge_bosons : public particle
+{
+  protected:
+    static constexpr double speed_of_light = 299792458;
+  public:
+    std::vector<std::shared_ptr<particle>> decay_products;
+    gauge_bosons( const string&name, double mass, double ch,  const four_momentum& mom) : particle(name, mass, ch, 1, mom){}
+    virtual ~gauge_bosons() {};
+
+    virtual gauge_bosons create_antiparticle() const
+    {
+      std::string antiparticle_name;
+      four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+      return gauge_bosons( antiparticle_name, rest_mass, -charge, antiparticle_momentum);
+    }
+    
+    void add_decay_product(std::shared_ptr<particle>& product)
+    {
+      decay_products.push_back(product);
+    }
+
+    const std::vector<std::shared_ptr<particle>>& get_decay_products() const 
+    {
+      return decay_products;
+    }
+
+    bool check_charge_consistency() const
+    {
+      try
+      {
+        double total_charge = std::accumulate(decay_products.begin(), decay_products.end(), 0.0, 
+        [](double sum, const std::shared_ptr<particle>&p)->double //Sum charges of all decay prodects
+        {
+          if(p) //Here we ensure the pointer is valid 
+          {
+            return sum + p->get_charge();
+          }
+          else
+          {
+            throw std::invalid_argument("Null particle pointer encountered in decay products.");
+          }
+        });
+        const double epsilon = 1e-6; // Threshold to not compare floating-point numbers for equality.
+        return std::abs(total_charge) < epsilon;
+      } 
+      catch(const std::exception& e)
+      {
+        std::cerr << "Exception in charge consistency check:" << e.what() << '\n';
+        return false;      
+      }
+      //to handle the caseof encountering a null pointer 
+    }
+    
+};
+
+class gluon : public gauge_bosons
+{
+protected: 
+  string colour;
+  string anticolour;
+public:
+  gluon( const string&col, const string&anticol, const four_momentum& mom) : gauge_bosons("gluon", 0, 0, mom), colour(col), anticolour(anticol){}
+  ~gluon() override {};
+  
+  void print_data() const override
+  {
+    particle::print_data();
+    std::cout<< "Gluon with speed:"<< speed_of_light<<std::endl;
+    std::cout<< "It has colour: "<<colour<<std::endl;
+    std::cout<< "It has anticolour: "<<anticolour<<std::endl;
+  }
+
+  void set_colour(const string& col)
+  {
+    colour= col;
+  }
+
+  string get_colour() const 
+  {
+    return colour;
+  } 
+
+    void set_anticolour(const string& anticol)
+  {
+    anticolour= anticol;
+  }
+
+  string get_anticolour() const 
+  {
+    return anticolour;
+  } 
+
+  bool valid_colour() const 
+  {   
+   return colour == "red" || "green" || "blue";   
+  }
+                                                     // ask if consistency checks are done by the user (if that is right or is on the setter?)
+  bool valid_anticolour() const 
+  {   
+   return anticolour == "antired" || "antigreen" || "antiblue";   
+  }
+
+  static string anticolour_charge(const string&colour_charge) // static so it does not rely on instance specific data.
+  {
+    if( colour_charge == "red")
+    {
+      return "antired";
+    }
+    else if( colour_charge == "green")
+    {
+      return "antigreen";
+    }
+    else if( colour_charge == "blue")
+    {
+      return "antiblue";
+    }
+    else if (colour_charge == "antired") 
+    {
+      return "red";
+    } 
+    else if (colour_charge == "antigreen") 
+    {
+      return "green";
+    } 
+    else if (colour_charge == "antiblue") 
+    {
+      return "blue";
+    } 
+    else 
+    {
+      // Handling unexpected input by throwing an exception
+      throw std::invalid_argument("Invalid or unknown colour charge: " + colour_charge);
+    }
+  }
+
+  gauge_bosons create_antiparticle() const override
+  {
+    four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+    string new_anticolour = anticolour_charge(colour);
+    string new_colour = anticolour_charge(anticolour);
+
+    return gluon(new_anticolour, new_colour, antiparticle_momentum);
+  }
+
+};
+
+class photon : public gauge_bosons
+{
+
+public:
+  
+  photon(const four_momentum& mom) : gauge_bosons("photon", 0, 0, mom){}
+  ~photon() override {};
+  
+  void print_data() const override
+  {
+    particle::print_data();
+    std::cout<< "Photon with speed:"<< speed_of_light<<std::endl;
+    
+  }
+  gauge_bosons create_antiparticle() const override
+  {
+    four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+    return photon(antiparticle_momentum);
+  }
+};
+
+class z_boson : public gauge_bosons
+{
+private:
+  std::vector<std::pair<double, std::function<void()>>> decay_mechanisms;
+public:
+  z_boson(const four_momentum& mom) : gauge_bosons("Z boson", 91.2e3, 0, mom)
+  {default_decays();} //default decay mechanism. 
+  
+  ~z_boson() override {};
+  
+  void print_data() const override
+  {
+    particle::print_data();
+  }
+  void print_decays()
+  {
+    std::cout << "Decay products:" << std::endl;
+    std::cout<<std::endl;
+    for (const auto& product : decay_products) 
+    {
+      if (product) 
+      {
+        product->print_data();  // Call print_data on each decay product
+        std::cout<<std::endl;
+      } else 
+      {
+        std::cout << "  Null particle detected in decay products." << std::endl;
+      }
+    }
+  }
+
+  void default_decays()
+  {
+    decay_mechanisms = 
+    {
+      {
+        1.0/3.0, [this]()
+        {
+          decay_products.push_back(std::make_shared<neutrino>(neutrino_type::electron_neutrino, four_momentum(), false));
+          auto neutrino_ptr = std::make_shared<neutrino>(neutrino_type::electron_neutrino, four_momentum(), false);
+          neutrino_ptr->set_particle_name("electron antineutrino");
+          decay_products.push_back(neutrino_ptr);
+        }
+      },
+      {
+        1.0/3.0, [this]()
+        {
+          decay_products.push_back(std::make_shared<lepton>("electron", 0.511, -1, four_momentum(), 1));
+          decay_products.push_back(std::make_shared<lepton>("positron", 0.511, 1, four_momentum(), 1));
+        }
+      },
+      {
+        1.0/3.0, [this]()
+        {
+          decay_products.push_back(std::make_shared<quark>( "up", 2.3, 2.0/3.0, "green", four_momentum(), 1.0/3.0));
+          auto antiquark = std::make_shared<quark>( "up", 2.3, 2.0/3.0, "green", four_momentum(), 1.0/3.0);
+          antiquark->create_antiparticle();
+          decay_products.push_back(antiquark);
+        }
+      }
+    };
+  }
+
+  void set_decay_mechanism(const std::vector<std::pair<double, std::function<void()>>>& mechanisms)
+  {
+    decay_mechanisms = mechanisms;
+  }
+
+  const std::vector<std::pair<double, std::function<void()>>>& get_decay_mechanisms() const
+  {
+    return decay_mechanisms;
+  }
+
+
+  void decay()
+  {
+    perform_decay<particle>(decay_products, decay_mechanisms);
+  }
+};
+
+class w_boson : public gauge_bosons
+{
+private:
+  std::vector<std::pair<double, std::function<void()>>> decay_mechanisms;
+public:
+  w_boson(const four_momentum& mom) : gauge_bosons("W+ boson", 80.4e3, 1, mom)
+  {default_decays();}
+  ~w_boson() override {};
+ 
+  gauge_bosons create_antiparticle() const override
+  {
+    four_momentum antiparticle_momentum = {momentum->get_energy(), -momentum->get_px(), -momentum->get_py(), -momentum->get_pz()};
+    return gauge_bosons("W- boson", 80.4e3, -1, antiparticle_momentum);
+  }
+
+  void default_decays()
+  {
+    decay_mechanisms =
+    {
+      {
+        1.0/3.0, [this]()
+        {
+          decay_products.push_back(std::make_shared<lepton>("electron", 0.511, -1, four_momentum(), 1));
+          auto neutrino_ptr = std::make_shared<neutrino>(neutrino_type::electron_neutrino, four_momentum(), false);
+          particle antineutrino = neutrino_ptr->create_antiparticle();
+          auto antineutrino_ptr = std::make_shared<particle>(antineutrino);
+          decay_products.push_back(antineutrino_ptr);
+        }
+      },
+      {
+        1.0/3.0, [this]()
+        {
+          decay_products.push_back(std::make_shared<neutrino>(neutrino_type::electron_neutrino, four_momentum(), false));
+          decay_products.push_back(std::make_shared<lepton>("positron", 0.511, 1, four_momentum(), 1));
+        }
+      },
+      {
+        1.0/3.0, [this]()
+        {
+          auto quark_ptr = std::make_shared<quark>( "up", 2.3, 2.0/3.0, "green", four_momentum(), 1.0/3.0);
+          quark_ptr->create_antiparticle();
+          decay_products.push_back(quark_ptr)  ;
+          decay_products.push_back(std::make_shared<quark>("down", 4.8, -1.0/3.0, "red", four_momentum(), -1.0/3.0));
+        }
+      }
+    };
+  }
+  void set_decay_mechanisms(const std::vector<std::pair<double, std::function<void()>>>& mechanisms)
+  {
+    decay_mechanisms = mechanisms;
+  }
+
+  const std::vector<std::pair<double, std::function<void()>>>& get_decay_mechanisms() const
+  {
+    return decay_mechanisms;
+  }
+
+  void decay() 
+  {
+    perform_decay<particle>(decay_products, decay_mechanisms);
+  }
+  
+  void print_data() const override
+  {
+    particle::print_data();
+  }
+
+  void print_decays()
+  {
+    std::cout << "Decay products:" << std::endl;
+    std::cout<<std::endl;
+    for (const auto& product : decay_products) 
+    {
+      if (product) 
+      {
+        product->print_data();  // Call print_data on each decay product
+        std::cout<<std::endl;
+      } else 
+      {
+        std::cout << "  Null particle detected in decay products." << std::endl;
+      }
+    }
+  }
+};
+
+class higgs_boson : public particle
+{
+protected:
+  
+  std::vector<std::pair<double, std::function<void()>>> decay_mechanisms;
+  
+public:
+  std::vector<std::shared_ptr<particle>> decay_products;
+  higgs_boson(const four_momentum&mom, int lept_number) : particle("Higgs Boson", 126e3, 0, 0, mom)
+  {set_default_decays();}
+
+  ~higgs_boson() override{}  
+
+  void set_default_decays()
+  {
+    decay_mechanisms=
+    {
+      {
+        0.25, [this]()
+        {
+          decay_products.push_back(std::make_shared<z_boson>(four_momentum()));
+          decay_products.push_back(std::make_shared<z_boson>(four_momentum()));
+        }
+      },
+      {
+        0.25, [this]()
+        {
+          decay_products.push_back(std::make_shared<gauge_bosons>("W+ boson", 80.4e3, 1, four_momentum()));
+          auto w_ptr = std::make_shared<gauge_bosons>("W+ boson", 80.4e3, 1, four_momentum());
+          w_ptr->create_antiparticle();
+          decay_products.push_back(w_ptr);
+        }
+      },
+      {
+        0.25, [this]()
+        {
+          decay_products.push_back(std::make_shared<quark>( "bottom", 4.18e3, -1.0/3.0, "red", four_momentum(), -1.0/3.0));
+          auto q_ptr = std::make_shared<quark>( "bottom", 4.18e3, -1.0/3.0, "red", four_momentum(), -1.0/3.0);
+          q_ptr->create_antiparticle();
+          decay_products.push_back(q_ptr);
+        }
+      },
+      {
+        0.25, [this]()
+        {
+          decay_products.push_back(std::make_shared<photon>(four_momentum()));
+          decay_products.push_back(std::make_shared<photon>(four_momentum()));
+        }
+      }
+    };
+  }  
+
+  void set_decay_mechanisms(const std::vector<std::pair<double, std::function<void()>>>& mechanisms)
+  {
+    decay_mechanisms = mechanisms;
+  }
+
+  void add_decay_product(std::shared_ptr<particle> product)
+  {
+    decay_products.push_back(product);
+  }
+
+  const std::vector<std::shared_ptr<particle>>& get_decay_products() const 
+    {
+      return decay_products;
+    }
+
+  const std::vector<std::pair<double, std::function<void()>>>& get_decay_mechanisms() const
+  {
+    return decay_mechanisms;
+  }
+
+  void decay() 
+  {
+    perform_decay<particle>(decay_products, decay_mechanisms);
+  }
+
+  void print_data() const override
+  {
+    particle::print_data();
+  }
+  void print_decays()
+  {
+    std::cout << "Decay products:" << std::endl;
+    std::cout<<std::endl;
+    for (const auto& product : decay_products) 
+    {
+      if (product) 
+      {
+        product->print_data();  // Call print_data on each decay product
+        std::cout<<std::endl;
+      } else 
+      {
+        std::cout << "  Null particle detected in decay products." << std::endl;
+      }
+    }
+  }
+
+  bool check_charge_consistency() const
+    {
+      try
+      {
+        double total_charge = std::accumulate(decay_products.begin(), decay_products.end(), 0.0, 
+        [](double sum, const std::shared_ptr<particle>&p)->double
+        {
+          if(p) //Here we ensure the pointer is valid 
+          {
+            return sum + p->get_charge();
+          }
+          else
+          {
+            throw std::invalid_argument("Null particle pointer encountered in decay products.");
+          }
+        });
+        const double epsilon = 1e-6; // Threshold to not compare floating-point numbers for equality.
+        return std::abs(total_charge) < epsilon;
+      } 
+      catch(const std::exception& e)
+      {
+        std::cerr << "Exception in charge consistency check:" << e.what() << '\n';
+        return false;      
+      }
+      
+      
+    }
+};
+
+
+class particle_catalogue 
+{
+  private: 
+    std::map<double, std::vector<std::shared_ptr<particle>>> particles_by_type;
+    std::map<string, std::vector<std::shared_ptr<particle>>> particles_by_kind;
+  public: 
+    void add_particles(const std::shared_ptr<particle>& p)
+    {
+      particles_by_kind[p->get_particle_name()].push_back(p);
+      particles_by_type[p->get_spin()].push_back(p);
+    }
+
+    size_t get_total_number_particles() const
+    {
+      size_t total = 0; //Initialise at 0.
+      for (const auto& entry : particles_by_kind)
+      {
+        total += entry.second.size();
+      }
+      std::cout<<"Total number of particles in container: "<<total<<std::endl;
+      return total;
+    }
+
+    std::map<string, int> get_number_particles_by_type() const
+    {
+      std::map<string, int> count;
+      std::cout<< "Particle counts by type: "<<std::endl;
+      for (const auto& entry : particles_by_type)
+      {
+        for (const auto& particle : entry.second)
+        {
+          string type;
+          //Classify based on spin
+          if(particle->get_spin() == 1)
+          {
+            type = "gauge boson";
+          }
+          else if(particle->get_spin() == 0)
+          {
+            type = "higgs boson";
+          }
+          else
+          {
+            //Classify the rest based on charge
+            if (particle->get_charge() == 1 || particle->get_charge() == -1 || particle->get_charge() == 0)
+            {
+              type = "lepton";
+            }
+            else
+            {
+              type = "quark";
+            }
+          
+          }
+          count[type]++;
+          
+        }
+      } 
+       
+      for(const auto& type_count : count)
+      {
+        std::cout<< "Type: "<< type_count.first << ", Count:" << type_count.second<<std::endl;
+      }
+      
+      
+      return count;
+    }
+
+    four_momentum sum_all_four_momentum() const
+    {
+      four_momentum total;
+      for (const auto& entry : particles_by_kind)
+      {
+        for(const auto& p : entry.second)
+        {
+          total = total + *(p->get_four_momentum_ptr());
+        }
+      }
+      std::cout<<"Total sum of four-momentum of all particles in container: ("<< total.get_energy() << ", " 
+                                                                              << total.get_px() << ", " 
+                                                                              << total.get_py() << ", " 
+                                                                              << total.get_pz() << ")" << std::endl;
+      return total;
+    }
+
+    std::vector<std::shared_ptr<particle>> get_particles_same_kind(const string & kind) const
+    {
+      std::vector<std::shared_ptr<particle>> same_kind;
+      auto it = particles_by_kind.find(kind);
+      if ( it!= particles_by_kind.end())
+      {
+        std::cout << "Number of particles of kind '"<<kind<<"': "<<it->second.size()<< std::endl; 
+        return it->second;
+      }
+      else
+      {
+        std::cout << "No particles of kind '"<<kind<< "' found."<<std::endl;
+        return {};
+      }
+    }
+
+    void print_particle_data(const string& kind) const
+    {
+      auto it = particles_by_kind.find(kind);
+      if(it!= particles_by_kind.end())
+      {
+        for( const auto& p : it->second)
+        {
+          p->print_data();
+        }
+      }
+      
+    }
+    
+    void print_all_paticle_data() const
+    {
+      for(const auto& entry : particles_by_type)
+      {
+        for(const auto& p: entry.second)
+        {
+          p->print_data();
+          std::cout<< std::endl; //Blank space so the particles are more readable. 
+        }
+        std::cout<<std::endl;
+      }
+
+    }
+    ~particle_catalogue(){};
+};
+
+int main() 
+{
+  particle_catalogue catalogue;
+
+  auto electron_ptr = std::make_shared<electron>(four_momentum(1.0, 0.1, 0.1, 0.1));
+  auto muon_ptr = std::make_shared<muon>(four_momentum(105.7, 0.0, 1.0, 2.0), true);
+  auto tau_ptr = std::make_shared<tau>(four_momentum(1776.82, 0.5, 0.5, 0.5), DecayMode::Leptonic);
+  auto el_neutrino_ptr = std::make_shared<neutrino>(neutrino_type::electron_neutrino, four_momentum(0.1, 0.0, 0.0, 0.1), true);
+  auto muon_neutrino_ptr = std::make_shared<neutrino>(neutrino_type::muon_neutrino, four_momentum(0.1, 0.0, 0.0, 0.1), false);
+  auto tau_neutrino_ptr = std::make_shared<neutrino>(neutrino_type::tau_neutrino, four_momentum(0.1, 0.0, 0.0, 0.1), false);
+
+  auto up_quark_ptr = std::make_shared<up::sub_quark>(four_momentum(2.3, 0.1, 0.1, 0.1), "red");
+  auto down_quark_ptr = std::make_shared<down::sub_quark>(four_momentum(4.8, -0.1, -0.1, -0.1), "red");
+  auto strange_quark_ptr = std::make_shared<strange::sub_quark>(four_momentum(95, 0.0, 1.0, 0.1), "blue");
+  auto charm_quark_ptr = std::make_shared<charm::sub_quark>(four_momentum(1275, 1.0, 2.0, 3.0), "red");
+  auto bottom_quark_ptr = std::make_shared<bottom::sub_quark>(four_momentum(4180, -1.0, -2.0, -3.0), "green");
+  auto top_quark_ptr = std::make_shared<top::sub_quark>(four_momentum(173070, 3.0, 4.0, 5.0), "blue");
+
+  auto photon_ptr = std::make_shared<photon>(four_momentum(10,6,8,0));  
+  auto gluon_ptr = std::make_shared<gluon>("red", "antigreen", four_momentum(10, 6, 8, 0));  
+  auto z_boson_ptr = std::make_shared<z_boson>(four_momentum(91188, 0, 0, 0));  
+  auto w_boson_ptr = std::make_shared<w_boson>(four_momentum(80400, 1, 1, 1));  
+
+  auto higgs_boson_ptr = std::make_shared<higgs_boson>(four_momentum(126000, 0, 0, 0), 0);  
+
+  auto positron = std::make_shared<lepton>(electron_ptr->create_antiparticle());
+  auto antimuon = std::make_shared<lepton>(muon_ptr->create_antiparticle());
+  auto antitau = std::make_shared<lepton>(tau_ptr->create_antiparticle());
+  auto el_antineutrino = std::make_shared<lepton>(el_neutrino_ptr->create_antiparticle());
+  auto muon_antineutrino = std::make_shared<lepton>(muon_neutrino_ptr->create_antiparticle());
+  auto tau_antineutrino = std::make_shared<lepton>(tau_neutrino_ptr->create_antiparticle());
+
+  auto up_antiquark = std::make_shared<quark>(up_quark_ptr->create_antiparticle());
+  auto down_antiquark = std::make_shared<quark>(down_quark_ptr->create_antiparticle());
+  auto strange_antiquark = std::make_shared<quark>(strange_quark_ptr->create_antiparticle());
+  auto charm_antiquark = std::make_shared<quark>(charm_quark_ptr->create_antiparticle());
+  auto bottom_antiquark = std::make_shared<quark>(bottom_quark_ptr->create_antiparticle());
+  auto top_antiquark = std::make_shared<quark>(top_quark_ptr->create_antiparticle());
+
+  auto w_neg_boson = std::make_shared<gauge_bosons>(w_boson_ptr->create_antiparticle());
+  auto neg_mom_photon = std::make_shared<gauge_bosons>(photon_ptr->create_antiparticle());
+  auto neg_mom_gluon = std::make_shared<gauge_bosons>(gluon_ptr->create_antiparticle());
+
+
+  catalogue.add_particles(electron_ptr);
+  catalogue.add_particles(muon_ptr);
+  catalogue.add_particles(tau_ptr);
+  catalogue.add_particles(el_neutrino_ptr);
+  catalogue.add_particles(muon_neutrino_ptr);
+  catalogue.add_particles(tau_neutrino_ptr);
+  catalogue.add_particles(up_quark_ptr);
+  catalogue.add_particles(down_quark_ptr);
+  catalogue.add_particles(strange_quark_ptr);
+  catalogue.add_particles(charm_quark_ptr);
+  catalogue.add_particles(bottom_quark_ptr);
+  catalogue.add_particles(top_quark_ptr);
+  catalogue.add_particles(photon_ptr);
+  catalogue.add_particles(gluon_ptr);
+  catalogue.add_particles(z_boson_ptr);
+  catalogue.add_particles(w_boson_ptr);
+  catalogue.add_particles(higgs_boson_ptr);
+  catalogue.add_particles(positron);
+  catalogue.add_particles(antimuon);
+  catalogue.add_particles(antitau);
+  catalogue.add_particles(el_antineutrino);
+  catalogue.add_particles(muon_antineutrino);
+  catalogue.add_particles(tau_antineutrino);
+  catalogue.add_particles(up_antiquark);
+  catalogue.add_particles(down_antiquark);
+  catalogue.add_particles(strange_antiquark);
+  catalogue.add_particles(charm_antiquark);
+  catalogue.add_particles(bottom_antiquark);
+  catalogue.add_particles(top_antiquark);
+  catalogue.add_particles(w_neg_boson);
+  catalogue.add_particles(neg_mom_gluon);
+  catalogue.add_particles(neg_mom_photon);
+
+
+  
+  catalogue.print_all_paticle_data();
+
+  std::cout<<"Introducing electron with 4-momentum: (-1.0, 0.1, 0.1, 0.1)" <<std::endl;
+  auto electron_bad_momentum = std::make_shared<electron>(four_momentum(-1.0, 0.1, 0.1, 0.1));
+  electron_bad_momentum->print_data();
+  catalogue.add_particles(electron_bad_momentum);
+  std::cout<<"Adding electron with corrected four-momentum to the particle catalogue.\n";
+  std::cout<<std::endl;
+  
+  catalogue.get_number_particles_by_type();
+  catalogue.get_particles_same_kind("electron");
+  catalogue.get_total_number_particles();
+  catalogue.sum_all_four_momentum();
+
+  
+
+  //Show how the default decays work (random probability equally distributed)
+  std::cout<<std::endl;
+  w_boson_ptr->decay();
+  z_boson_ptr->decay();
+  std::cout<<"W boson has decayed: \n";
+  w_boson_ptr->print_data();
+  w_boson_ptr->print_decays();
+  if(w_boson_ptr->check_charge_consistency())
+  {
+    std::cout<< "The charge consistency check for w_boson passed." << std::endl;
+  }
+  else 
+  {
+    std::cout<< "The charge consistency check for w_boson failed." << std::endl;
+  }
+  
+  std::cout<<std::endl;
+  std::cout<<"Z boson has decayed: \n";
+  z_boson_ptr->print_data();
+  z_boson_ptr->print_decays();
+  if(z_boson_ptr->check_charge_consistency())
+  {
+    std::cout<< "The charge consistency check for z_boson passed." << std::endl;
+  }
+  else 
+  {
+    std::cout<< "The charge consistency check for z_boson failed." << std::endl;
+  }
+
+  std::cout<<std::endl;
+
+  //Show how the setter for a decay works
+  higgs_boson h_boson(four_momentum(126000, 0, 0, 0), 0);
+  std::vector<std::pair<double, std::function<void()>>> new_decays =    
+  {
+    {
+      // Probabilities (0.20, 0.30, 0.10, 0.40) added as an example
+      0.20, [&]() 
+      {
+        h_boson.add_decay_product(std::make_shared<z_boson>(four_momentum()));
+        h_boson.add_decay_product(std::make_shared<z_boson>(four_momentum()));
+      }
+    },
+    {
+      0.30, [&]()
+      {
+        h_boson.add_decay_product(std::make_shared<w_boson>(four_momentum()));
+        auto w_neg_boson = std::make_shared<gauge_bosons>(w_boson_ptr->create_antiparticle());
+        h_boson.add_decay_product(w_neg_boson);
+      }
+    },
+    {
+      0.10, [&]()
+      {
+        h_boson.add_decay_product(std::make_shared<quark>( "bottom", 4.18e3, -1.0/3.0, "red", four_momentum(), -1.0/3.0));
+        auto q_ptr = std::make_shared<quark>( "bottom", 4.18e3, -1.0/3.0, "red", four_momentum(), -1.0/3.0);
+        q_ptr->create_antiparticle();
+        h_boson.add_decay_product(q_ptr);
+      }
+    },
+    {
+      0.40, [&]()
+      {
+        h_boson.add_decay_product(std::make_shared<photon>(four_momentum()));
+        h_boson.add_decay_product(std::make_shared<photon>(four_momentum()));
+      }
+    }
+  };
+  h_boson.set_decay_mechanisms(new_decays);
+  h_boson.decay();
+  h_boson.print_data();
+  h_boson.print_decays();
+  std::cout<<std::endl;
+  //Default and setter for decays work the same for taus, W,Z and higgs boson. Same for consistency check.
+
+
+
+  if(h_boson.check_charge_consistency())
+  {
+    std::cout<< "The charge consistency check for h_boson passed." << std::endl;
+  }
+  else 
+  {
+    std::cout<< "The charge consistency check for h_boson failed." << std::endl;
+  }
+  
+
+
+  return 0;
+}
